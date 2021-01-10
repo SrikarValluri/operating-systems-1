@@ -9,10 +9,6 @@ struct movie{
 };
 
 
-void print_struct(struct movie movie){
-   printf("Struct has Title: %s, Year: %s, Languages: %s, and Rating: %s. ", movie.title, movie.year, movie.languages, movie.rating);
-}
-
 struct movie *createMovie(char *currLine){
    struct movie *currMovie = malloc(sizeof(struct movie));
 
@@ -30,7 +26,7 @@ struct movie *createMovie(char *currLine){
    strcpy(currMovie->year, token);
 
    // The next token is the languages
-   token = strtok_r(NULL, " ", &saveptr);
+   token = strtok_r(NULL, ",", &saveptr);
    currMovie->languages = calloc(strlen(token) + 1, sizeof(char));
    strcpy(currMovie->languages, token);
 
@@ -67,7 +63,7 @@ struct movie *processFile(char *filePath)
     struct movie *tail = NULL;
 
     // Read the file line by line
-    while((nread = getline(&currLine, &len, movieFile)) != -1)
+    while((getline(&currLine, &len, movieFile)) != -1)
     {
         // Get a new movie node corresponding to the current line
         struct movie *newNode = createMovie(currLine);
@@ -79,12 +75,13 @@ struct movie *processFile(char *filePath)
             // Set the head and the tail to this node
             head = newNode;
             tail = newNode;
+            head -> next = tail;
         }
         else
         {
             // This is not the first node.
             // Add this node to the list and advance the tail
-            tail->next = newNode;
+            tail -> next = newNode;
             tail = newNode;
         }
     }
@@ -97,10 +94,10 @@ struct movie *processFile(char *filePath)
 * Print data for the given movie
 */
 void printMovie(struct movie* movie){
-  printf("%s, %s %s, %s\n", movie->onid,
-               movie->firstName,
-               movie->lastName,
-               movie->major);
+  printf("%s, %s %s, %s\n", movie->title,
+               movie->year,
+               movie->languages,
+               movie->rating);
 }
 /*
 * Print the linked list of movies
@@ -123,15 +120,24 @@ void printMovieList(struct movie *list)
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
-    {
-        printf("You must provide the name of the file to process\n");
-        printf("Example usage: ./movies movie_info1.txt\n");
-        return EXIT_FAILURE;
-    }
-    struct movie *list = processFile(argv[1]);
-    printMovieList(list);
-    return EXIT_SUCCESS;
+
+   //  struct movie *list = processFile("./movies_sample_1.csv");
+   //  printMovieList(list);
+   //  return 0;
+
+   FILE *movieFile = fopen("./movies_sample_1.csv", "r");
+   char *currLine = NULL;
+   size_t len = 0;   
+   struct movie *temp;
+
+   while((getline(&currLine, &len, movieFile)) != -1){
+      temp = createMovie(currLine);
+      printMovie(temp);
+   }
+
+
+
+
 }
 
 
