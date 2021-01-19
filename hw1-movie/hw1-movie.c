@@ -119,8 +119,8 @@ Print data specifically for Option 2's formatting (year, rating, title)
 */
 void printOption2(struct movie *aMovie)
 {
-    printf("%s %s %s\n", aMovie->year,
-           aMovie->rating,
+    printf("%s %0.1f %s\n", aMovie->year,
+           atof(aMovie->rating),
            aMovie->title);
 }
 
