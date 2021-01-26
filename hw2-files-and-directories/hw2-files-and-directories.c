@@ -317,7 +317,7 @@ int fileCheckCSV()
     scanf("%s", fileInput);
     if((dir = opendir("./")) != NULL) //if directory isn't empty
     {
-        while ((ent = readdirw(dir)) != NULL) //check directory
+        while ((ent = readdir(dir)) != NULL) //check directory
         {
             snprintf(modPtrInput, sizeof modPtrInput, "_%s_", ent->d_name); //marking to avoid underlap
             snprintf(modFileInput, sizeof modFileInput, "_%s_", fileInput);
