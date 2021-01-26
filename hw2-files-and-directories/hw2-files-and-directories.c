@@ -3,7 +3,6 @@
 //#define _GNU_SOURCE
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -34,7 +33,7 @@ void printMovie(struct movie *aMovie)
            aMovie->rating);
 }
 /*
-* Print the struct attributes of a specific movie
+* Print the struct attributes of a specific linked list
 */
 void printMovieList(struct movie *list)
 {
@@ -46,7 +45,7 @@ void printMovieList(struct movie *list)
 }
 
 /*
-Print the entire linked list, and the attributes of each struct in the list
+Iterate through the entire linked list, and return the number of movies
 */
 int returnMovieCount(struct movie *list)
 {
@@ -149,31 +148,30 @@ struct movie *processFile(char *filePath)
 
 void processFile2(char *filePath)
 {
-    struct movie *list = processFile(filePath);
-    printf("Processed file %s and parsed data for %i movies\n", filePath, returnMovieCount(list)); //sending message to user to confirm success of linked list creation
-    // printMovieList(list);
-    char newDirectory[100];
-    char newDirectoryTemp[100];
+    struct movie *list = processFile(filePath); //use original processing for file
+    printf("Processed file %s and parsed data for %i movies\n", filePath, returnMovieCount(list)); //sending message to user to confirm success of processing
+    char newDirectory[100]; //concatenated version of directory that will be created
+    char newDirectoryTemp[100]; //newDirectory + year concatenated
 
 
-    srand(time(NULL));
-    int randomNumber;
-    randomNumber = rand() % 100000;
+    srand(time(NULL)); //set random time
+    int randomNumber; //define random number
+    randomNumber = rand() % 100000; //use rand() function to generate random value between 0 and 99999
 
-    struct stat st = {0};
+    struct stat st = {0}; //null to compare
 
-    snprintf(newDirectory, 100, "./valluris.movies.%d", randomNumber);
-    printf("Created directory with name valluris.movies.%d\n", randomNumber);
+    snprintf(newDirectory, 100, "./valluris.movies.%d", randomNumber); //concatenate
+    printf("Created directory with name valluris.movies.%d\n", randomNumber); //message to user
 
     if(stat(newDirectory, &st) == -1) 
     {
-        mkdir(newDirectory, 0750);
+        mkdir(newDirectory, 0750); //create directory
     }
-    while(list != NULL)
+    while(list != NULL) //iterate through the list processed in processFile()
     {
-        snprintf(newDirectoryTemp, 100, "%s/%s", newDirectory, list->year);
-        int fileInt = open(newDirectoryTemp, O_RDWR | O_APPEND | O_CREAT, 0640);
-        write(fileInt, strcat(list->title, "\n"), strlen(list->title));
+        snprintf(newDirectoryTemp, 100, "%s/%s", newDirectory, list->year); //concatenate directory
+        int fileInt = open(newDirectoryTemp, O_RDWR | O_APPEND | O_CREAT, 0640); //open file in directory
+        write(fileInt, strcat(list->title, "\n"), strlen(list->title)); //write to directory
         
         list = list->next;
     }
@@ -203,9 +201,7 @@ int inputOption()
 }
 
 /*
-If the user inputs 1, then they will be led to this function
-This function takes input from the user, and selectively detects which movies (structs) match with that year
-Information is printed in the console
+This the second stage of user input, hence a different variable
 */
 
 int inputOption1(){
@@ -219,6 +215,11 @@ int inputOption1(){
     return inputNumber;
 }
 
+/*
+This is option 1 of the file processing. It iterates through all of the files in the directory, and determines the 
+largest file with movies_* at the start. It then takes the maxFile and processes it. 
+
+*/
 void largestCSV()
 {
     DIR *dir;
@@ -227,35 +228,39 @@ void largestCSV()
     char *maxFile;
     long maxLength = 0;
     long fileLength = 0;
-    if((dir = opendir("./")) != NULL) 
+    if((dir = opendir("./")) != NULL) //iterate through entire directory
     {
-        /* print all the files and directories within directory */
-        while ((ent = readdir (dir)) != NULL)
+        while ((ent = readdir(dir)) != NULL)
         {
-            if(strncmp(ent->d_name, "movies_", strlen("movies_")) == 0)
+            if(strncmp(ent->d_name, "movies_", strlen("movies_")) == 0) //compare strings to make sure that input starts with movies
             {
-                fileCSV = fopen(ent->d_name, "rb");
+                fileCSV = fopen(ent->d_name, "rb"); //open file
                 fseek(fileCSV, 0, SEEK_END);
-                fileLength = ftell(fileCSV);
+                fileLength = ftell(fileCSV); //find file length
 
-                if(fileLength > maxLength)
+                if(fileLength > maxLength) //compare to max length
                 {
-                    maxLength = fileLength;
+                    maxLength = fileLength; //update max length
                     maxFile = ent->d_name;
                 }
 
                 fseek(fileCSV, 0 , SEEK_SET);
             }
         }
-        processFile2(maxFile);
+        processFile2(maxFile); //process max file
         closedir(dir);
     } 
     else 
     {
-    /* could not open directory */
+    //could not open directory
     perror ("");
     }
 }
+
+/*
+This is option 2 of the file processing. It's essentially the opposite of option 1, as it is identical except for the inequality operation. 
+
+*/
 
 void smallestCSV()
 {
@@ -265,38 +270,39 @@ void smallestCSV()
     char *minFile;
     long minLength = 1000000000;
     long fileLength = 0;
-    if((dir = opendir("./")) != NULL) 
+    if((dir = opendir("./")) != NULL) //iterate through directory
     {
-        /* print all the files and directories within directory */
-        while ((ent = readdir (dir)) != NULL)
+        while ((ent = readdir(dir)) != NULL)
         {
-            if(strncmp(ent->d_name, "movies_", strlen("movies_")) == 0)
+            if(strncmp(ent->d_name, "movies_", strlen("movies_")) == 0) // determine whether starts with movies_
             {
                 fileCSV = fopen(ent->d_name, "rb");
                 fseek(fileCSV, 0, SEEK_END);
                 fileLength = ftell(fileCSV);
 
-                if(fileLength < minLength)
+                if(fileLength < minLength) //minimum condition
                 {
-                    minLength = fileLength;
+                    minLength = fileLength; //update minimum
                     minFile = ent->d_name;
                 }
 
                 fseek(fileCSV, 0 , SEEK_SET);
             }
         }
-        processFile2(minFile);
-        // printf("%s\n", minFile);
-        
+        processFile2(minFile); //process minFile     
         closedir(dir);
     } 
     else 
     {
-    /* could not open directory */
+    //could not open directory 
     perror ("");
     }
 }
+/*
+This is option 3 of the file processing. It iterates through all of the files in the directory, and determines whether the
+user input matches a file name, and if it does, it processes that file. 
 
+*/
 int fileCheckCSV()
 {
     DIR *dir;
@@ -309,70 +315,61 @@ int fileCheckCSV()
     int isInDir = 0;
     printf("Enter the complete file name: ");
     scanf("%s", fileInput);
-    if((dir = opendir("./")) != NULL) 
+    if((dir = opendir("./")) != NULL) //if directory isn't empty
     {
-        /* print all the files and directories within directory */
-        while ((ent = readdir (dir)) != NULL)
+        while ((ent = readdirw(dir)) != NULL) //check directory
         {
-            snprintf(modPtrInput, sizeof modPtrInput, "_%s_", ent->d_name);
+            snprintf(modPtrInput, sizeof modPtrInput, "_%s_", ent->d_name); //marking to avoid underlap
             snprintf(modFileInput, sizeof modFileInput, "_%s_", fileInput);
             if(strncmp(modPtrInput, modFileInput, strlen(modFileInput)) == 0)
             {
-                isInDir = 1;
+                isInDir = 1; //marker for match
             }          
         }
         if(isInDir == 1)
         {
-            processFile2(fileInput);
+            processFile2(fileInput); //if match, process matched file
         }
         else
         {
-            printf("The file %s was not found. Try again\n\n", fileInput);
+            printf("The file %s was not found. Try again\n\n", fileInput); //error message
         }
         closedir(dir);
     } 
     else 
     {
-    /* could not open directory */
+    //could not open directory 
     perror ("");
     }
     return isInDir;
 }
 int main(int argc, char *argv[])
 {
-    // if (argc < 2) //provide easy data input
-    // {
-    //     printf("You must provide the name of the file to process\n");
-    //     printf("Example usage: ./movies movies_sample_1.csv\n");
-    //     return EXIT_FAILURE;
-    // }
-    // struct movie *list = processFile(argv[1]); //creating linked list
-    // printf("Processed file %s and parsed data for %i movies\n", argv[1], returnMovieCount(list)); //sending message to user to confirm success of linked list creation
-    int inputNumber = 0; //recieving input value
-    int inputNumber1 = 0;
-    int returnVal3 = 0;
+    int inputNumber = 0; //recieving initial input
+    int inputNumber1 = 0; //secondary input
+    int returnVal3 = 0; //looping check for 3
     while(1)
     {
         inputNumber = inputOption(); //input function, clean input
-        if(inputNumber == 1) // user chooses option 1, call function that does option 1 task
+        if(inputNumber == 1) //user chooses option 1, move forward with more options
         {
             while(1)
             {
-                inputNumber1 = inputOption1();
-                if(inputNumber1 == 1)
+                inputNumber1 = inputOption1(); //ask user for input option 1 layer deep, then 3 different options
+                if(inputNumber1 == 1) //if one, find largest
                 {
                     largestCSV();
                     break;
                 }
-                else if(inputNumber1 == 2)
+                else if(inputNumber1 == 2) //if two, find smallest
                 {
                     smallestCSV();
                     break;
                 }
-                else if(inputNumber1 == 3)
+                else if(inputNumber1 == 3) //if 3, user input
                 {
                     returnVal3 = fileCheckCSV();
-                    if(returnVal3 == 1)
+                    if(returnVal3 == 1) //checks for looping
                     {
                         break;
                     } 
@@ -382,13 +379,13 @@ int main(int argc, char *argv[])
                 }  
             }
         }
-        else if(inputNumber == 2) // user chooses option 2, call function that does option 2 task
+        else if(inputNumber == 2) //user chooses option 2, break
         {
             break;
         }
         else
         {
-            printf("You entered an incorrect choice. Try again.\n"); // if integer is not within range
+            printf("You entered an incorrect choice. Try again.\n"); //if integer is not within range
         }
     }
 
