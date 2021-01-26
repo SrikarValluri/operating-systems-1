@@ -9,6 +9,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdlib.h>  // rand(), srand()
+#include <time.h>    // time()
+#include <fcntl.h>
 
 /* struct for important movie information */
 struct movie
@@ -19,6 +22,42 @@ struct movie
     char *rating;
     struct movie *next;
 };
+
+/*
+* Print data for the given movie
+*/
+void printMovie(struct movie *aMovie)
+{
+    printf("%s, %s %s, %s\n", aMovie->title,
+           aMovie->languages,
+           aMovie->year,
+           aMovie->rating);
+}
+/*
+* Print the struct attributes of a specific movie
+*/
+void printMovieList(struct movie *list)
+{
+    while (list != NULL)
+    {
+        printMovie(list);
+        list = list->next;
+    }
+}
+
+/*
+Print the entire linked list, and the attributes of each struct in the list
+*/
+int returnMovieCount(struct movie *list)
+{
+    int i = 0;
+    while (list != NULL)
+    {
+        i++;
+        list = list->next;
+    }
+    return i;
+}
 
 /* Parse the current line which is space delimited and create a
 *  movie struct with the data in this line
@@ -111,79 +150,36 @@ struct movie *processFile(char *filePath)
 void processFile2(char *filePath)
 {
     struct movie *list = processFile(filePath);
-    char *newDirectory;
+    printf("Processed file %s and parsed data for %i movies\n", filePath, returnMovieCount(list)); //sending message to user to confirm success of linked list creation
+    // printMovieList(list);
+    char newDirectory[100];
+    char newDirectoryTemp[100];
+
+
     srand(time(NULL));
     int randomNumber;
-    struct stat st = {0};
     randomNumber = rand() % 100000;
-    snprintf(newDirectory, 32, "./valluris.movies.%d", randomNumber);
+
+    struct stat st = {0};
+
+    snprintf(newDirectory, 100, "./valluris.movies.%d", randomNumber);
+    printf("Created directory with name valluris.movies.%d\n", randomNumber);
 
     if(stat(newDirectory, &st) == -1) 
     {
-        mkdir(newDirectory, 750);
+        mkdir(newDirectory, 0750);
     }
-
-
-}
-
-
-/*
-* Print data for the given movie
-*/
-void printMovie(struct movie *aMovie)
-{
-    printf("%s, %s %s, %s\n", aMovie->title,
-           aMovie->languages,
-           aMovie->year,
-           aMovie->rating);
-}
-
-/*
-Print data specifically for Option 2's formatting (year, rating, title)
-*/
-void printOption2(struct movie *aMovie)
-{
-    printf("%s %0.1f %s\n", aMovie->year,
-           atof(aMovie->rating),
-           aMovie->title);
-}
-
-/*
-Print data specifically for Option 3's formatting (year, title)
-*/
-
-void printOption3(struct movie *aMovie)
-{
-    printf("%s %s\n", aMovie->year,
-           aMovie->title);
-}
-
-
-/*
-* Print the struct attributes of a specific movie
-*/
-void printMovieList(struct movie *list)
-{
-    while (list != NULL)
+    while(list != NULL)
     {
-        printMovie(list);
+        snprintf(newDirectoryTemp, 100, "%s/%s", newDirectory, list->year);
+        int fileInt = open(newDirectoryTemp, O_RDWR | O_APPEND | O_CREAT, 0640);
+        write(fileInt, strcat(list->title, "\n"), strlen(list->title));
+        
         list = list->next;
     }
+
 }
 
-/*
-Print the entire linked list, and the attributes of each struct in the list
-*/
-int returnMovieCount(struct movie *list)
-{
-    int i = 0;
-    while (list != NULL)
-    {
-        i++;
-        list = list->next;
-    }
-    return i;
-}
 
 /*
 *   Process the file provided as an argument to the program to
@@ -199,8 +195,8 @@ It then uses scanf to recieve a guaranteed integer input, which will then be ret
 int inputOption()
 {
     int inputNumber;
-    printf("1. Select file to Process\n");
-    printf("2. Exit from the program\n");
+    printf("\n1. Select file to Process\n");
+    printf("2. Exit from the program\n\n");
     printf("Enter a choice from 1 to 2: ");
     scanf("%d", &inputNumber);
     return inputNumber;
@@ -214,10 +210,10 @@ Information is printed in the console
 
 int inputOption1(){
     int inputNumber;
-    printf("Which file you want to process?\n");
+    printf("\nWhich file you want to process?\n");
     printf("Enter 1 to pick the largest file\n");
     printf("Enter 2 to pick the smallest file\n");
-    printf("Enter 3 to specify the name of a file\n");
+    printf("Enter 3 to specify the name of a file\n\n");
     printf("Enter a choice from 1 to 3: ");
     scanf("%d", &inputNumber);
     return inputNumber;
@@ -263,133 +259,87 @@ void largestCSV()
 
 void smallestCSV()
 {
-
-}
-
-
-
-
-void optionOne(struct movie *list)
-{
-    int yearRequested;
-    int numMovies = 0; //count for determining whether movies were even counted that year
-    printf("Enter for the year for which you want to see movies: "); //user input message
-    scanf("%d", &yearRequested); //user input
-    while(list != NULL) //looping through the movie list
+    DIR *dir;
+    struct dirent *ent;
+    FILE *fileCSV;
+    char *minFile;
+    long minLength = 1000000000;
+    long fileLength = 0;
+    if((dir = opendir("./")) != NULL) 
     {
-        if(yearRequested == atoi(list->year)) //determining whether the year matched with the input request
+        /* print all the files and directories within directory */
+        while ((ent = readdir (dir)) != NULL)
         {
-            printf("%s\n", list->title);
-            numMovies++;
-        }
-        list = list->next;
-    }
-    if(numMovies == 0) //no movies matched with the year input condition
-    {
-        printf("No data about movies released in %d\n", yearRequested);
-    }
-    
-}
-
-/*
-If the user inputs 2, then they will be led to this function
-This function uses a stack system. As we iterate through the list, we find the best possible values for each year.
-We then update an array (sometimes replacing) values in the array, so that for every year, there is only one movie struct within the array, with the highest rating.
-Information is printed in the console
-*/
-
-void optionTwo(struct movie *list)
-{
-    struct movie *minMovies[121] = { NULL }; //array that contains the highest-rank structs
-    int counter; //counter
-    while(list != NULL) //iterating through list
-    {
-        counter = 0; //initialize counter
-        while(1) //loop that runs forever, but stops with break statements
-        {
-            if(minMovies[counter] != NULL) //if there are structs already in the array
+            if(strncmp(ent->d_name, "movies_", strlen("movies_")) == 0)
             {
-                if(atoi(list->year) == atoi(minMovies[counter]->year)) //compare the year of the current list with the struct in the array
+                fileCSV = fopen(ent->d_name, "rb");
+                fseek(fileCSV, 0, SEEK_END);
+                fileLength = ftell(fileCSV);
+
+                if(fileLength < minLength)
                 {
-                    if(strtod(list->rating, NULL) >= strtod(minMovies[counter]->rating, NULL)) //if they are the same year, compare the rating
-                    {
-                        minMovies[counter] = list; //replace the old struct with new struct if rating is higher, we want max rating for all years
-                    }
-                    break; //now that we've iterated and replaced, there's no point of continuing to iterate, so break
+                    minLength = fileLength;
+                    minFile = ent->d_name;
                 }
-                
-            }
-            else //if there is no structs in the array
-            {
-                minMovies[counter] = list; //add the first struct, it's arbitrary
-                break; //break, don't loop through a list with nulls
-            }
-            counter++; //iterate through the array to check for new stored structs 
-        }
-        list = list->next; //iterate through the linked list
-    }
-    counter = 0; //reset counter
-    while(minMovies[counter] != NULL) //iterate through the array
-    {
-        printOption2(minMovies[counter]); //print the neccessary information with the highest ratings, with part 2's required formatting
-        counter++; //iterate through the array
-    }
 
+                fseek(fileCSV, 0 , SEEK_SET);
+            }
+        }
+        processFile2(minFile);
+        // printf("%s\n", minFile);
+        
+        closedir(dir);
+    } 
+    else 
+    {
+    /* could not open directory */
+    perror ("");
+    }
 }
 
-/*
-If the user inputs 3, they require all the movies for a specific language. After an input is taken, we modify the input with a "tag" (aka an underscore before and after)
-We then modify the struct movie-> languages to replace any characters other than alphabets to an underscore as well.
-This way, we can determine whether a string subset will uniquely identify as a language within the string of all languages
-
-*/
-
-void optionThree(struct movie *list)
+int fileCheckCSV()
 {
-    char languageRequested[20]; //original user input
-    char modLanguageRequested[22]; //modified user input
-    char actualCharacter[100]; //modified struct movie->languages with _
-    char *pointerChar; //pointer to iterate through characters
-    int indexChar; //index to index the pointer
-    int length; //number of characters
-    int numMovies = 0; //check to determine whether there even were movies that were in a particular language
-    printf("Enter the language for which you want to see movies: "); //language user input message
-    scanf("%s", languageRequested); //language user input
-    snprintf(modLanguageRequested, sizeof modLanguageRequested, "_%s_", languageRequested); //modifying original input
-
-    while(list != NULL) //iterate through list
+    DIR *dir;
+    struct dirent *ent;
+    FILE *fileCSV;
+    long fileLength = 0;
+    char modPtrInput[102];
+    char fileInput[100];
+    char modFileInput[102];
+    int isInDir = 0;
+    printf("Enter the complete file name: ");
+    scanf("%s", fileInput);
+    if((dir = opendir("./")) != NULL) 
     {
-        indexChar = 0; //initialize index
-        pointerChar = list->languages; //pointer that points to languages
-        length = strlen(pointerChar); //determining char length of languages
-        while(indexChar < length) //iterating through the chars of the language string, parsing anything with [ ; or ], replacing it with _
+        /* print all the files and directories within directory */
+        while ((ent = readdir (dir)) != NULL)
         {
-            if(pointerChar[indexChar] == '[' || pointerChar[indexChar] == ';' || pointerChar[indexChar] == ']')
+            snprintf(modPtrInput, sizeof modPtrInput, "_%s_", ent->d_name);
+            snprintf(modFileInput, sizeof modFileInput, "_%s_", fileInput);
+            if(strncmp(modPtrInput, modFileInput, strlen(modFileInput)) == 0)
             {
-                actualCharacter[indexChar] = '_';
-            }
-            else
-            {
-                actualCharacter[indexChar] = pointerChar[indexChar]; //if it's part of the alphabet, then just directly copy to new array
-            }
-            indexChar++;
+                isInDir = 1;
+            }          
         }
-        if(strstr(actualCharacter, modLanguageRequested) != NULL) //see if modified input is within the modified language string, if so, then same with non-modified counterparts
+        if(isInDir == 1)
         {
-            printOption3(list);
-            numMovies++;
+            processFile2(fileInput);
         }
-
-        list = list->next;
-    }
-    if(numMovies == 0) //alternate case of no language match 
+        else
+        {
+            printf("The file %s was not found. Try again\n\n", fileInput);
+        }
+        closedir(dir);
+    } 
+    else 
     {
-        printf("No data about movies released in %s\n", languageRequested);
+    /* could not open directory */
+    perror ("");
     }
+    return isInDir;
 }
 int main(int argc, char *argv[])
 {
-    largestCSV();
     // if (argc < 2) //provide easy data input
     // {
     //     printf("You must provide the name of the file to process\n");
@@ -398,44 +348,49 @@ int main(int argc, char *argv[])
     // }
     // struct movie *list = processFile(argv[1]); //creating linked list
     // printf("Processed file %s and parsed data for %i movies\n", argv[1], returnMovieCount(list)); //sending message to user to confirm success of linked list creation
-    // int inputNumber = 0; //recieving input value
-    // int inputNumber1 = 0;
-    // while(1)
-    // {
-    //     inputNumber = inputOption(); //input function, clean input
-    //     if(inputNumber == 1) // user chooses option 1, call function that does option 1 task
-    //     {
-    //         while(1)
-    //         {
-    //             inputNumber1 = inputOption1();
-    //             if(inputNumber1 == 1)
-    //             {
-    //                 largestCSV();
-    //                 break;
-    //             }
-    //             else if(inputNumber1 == 2)
-    //             {
-    //                 smallestCSV();
-    //                 break;
-    //             }
-    //             else if(inputNumber1 == 3)
-    //             {
-    //                 fileCheckCSV();
-    //             }             
-    //             else{
-    //                 printf("You entered an incorrect choice. Try again.\n");
-    //             }  
-    //         }
-    //     }
-    //     else if(inputNumber == 2) // user chooses option 2, call function that does option 2 task
-    //     {
-    //         break;
-    //     }
-    //     else
-    //     {
-    //         printf("You entered an incorrect choice. Try again.\n"); // if integer is not within range
-    //     }
-    // }
+    int inputNumber = 0; //recieving input value
+    int inputNumber1 = 0;
+    int returnVal3 = 0;
+    while(1)
+    {
+        inputNumber = inputOption(); //input function, clean input
+        if(inputNumber == 1) // user chooses option 1, call function that does option 1 task
+        {
+            while(1)
+            {
+                inputNumber1 = inputOption1();
+                if(inputNumber1 == 1)
+                {
+                    largestCSV();
+                    break;
+                }
+                else if(inputNumber1 == 2)
+                {
+                    smallestCSV();
+                    break;
+                }
+                else if(inputNumber1 == 3)
+                {
+                    returnVal3 = fileCheckCSV();
+                    if(returnVal3 == 1)
+                    {
+                        break;
+                    } 
+                }             
+                else{
+                    printf("You entered an incorrect choice. Try again.\n");
+                }  
+            }
+        }
+        else if(inputNumber == 2) // user chooses option 2, call function that does option 2 task
+        {
+            break;
+        }
+        else
+        {
+            printf("You entered an incorrect choice. Try again.\n"); // if integer is not within range
+        }
+    }
 
-    // return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
