@@ -58,36 +58,27 @@ void printParse(char **fragmentArray)
 
 void execCommand(char **fragmentArray)
 {
-    pid_t spawnpid = -5;
-    int childStatus;
-    int childPid;
-
     int i = 0;
     char* ch = fragmentArray[i];
     while(strcmp(ch, "\0") != 0)
     {
-        printf("%s\n", ch);
         ch = fragmentArray[++i];
     }
     fragmentArray[i] = NULL;
     execvp(fragmentArray[0], fragmentArray);
-    perror("execv");
+    perror("execvp");
 }
 
-// void exitFunc()
-// {
-    
-// }
 
-// void cdFunc()
-// {
-    
-// }
+void cdFunc()
+{
+    printf("hi");
+}
 
-// void statusFunc()
-// {
-    
-// }
+void statusFunc()
+{
+    printf("hi2");
+}
 
     // spawnpid = fork();
     // switch (spawnpid){
@@ -102,33 +93,66 @@ void execCommand(char **fragmentArray)
     // childPid = wait(&childStatus);
     //         printf("Parent's waiting is done as the child with pid %d exited\n", childPid);
     // }
+
+// char* exactStrCpr(char **fragmentArray)
+// {
+//     char *fragmentArrayCopy[258];
+//     char exitCpy[] = "_exit_";
+//     char exitCpy[] = "_cd_";
+//     char exitCpy[] = "_status_";
+
+//     snprintf(fragmentArrayCopy, sizeof fragmentArrayCopy, "_%s_", fragmentArray);
+//     if(strstr(fragmentArray, fragmentArrayCopy) != NULL)
+//     {
+//         return "true";
+//     }
+
+//     else
+//     {
+//         return "false";
+//     }
+// }
+
+
 int main(int argc, char *argv[])
 {
     while(1)
     {
         char **fragmentArray = parseInput(shellUI());
-        pid_t spawnpid = -5;
-	    int childStatus;
-        int childPid;
-        // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
-	    spawnpid = fork();
-        switch (spawnpid)
+        printf("%s", fragmentArray[0]);
+        if(strcmp(fragmentArray[0], "exit") == 0)
         {
-            case -1:
-                perror("fork() failed!");
-                exit(1);
-                break;
-            case 0:
-                printf("I am the child. My pid  = %d\n", getpid());
-                execCommand(fragmentArray);
-            default:
-                printf("I am the parent. My pid  = %d\n", getpid());
-                childPid = wait(&childStatus);
-                printf("Parent's waiting is done as the child with pid %d exited\n", childPid);
+            break;
+        }
+        else if(fragmentArray[0] == "cd")
+        {
+            cdFunc();
+        }
+        else if(fragmentArray[0] == "status")
+        {
+            statusFunc();
+        }
+        else
+        {
+            pid_t spawnpid = -5;
+            int childStatus;
+            int childPid;
+            // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
+            spawnpid = fork();
+            switch(spawnpid)
+            {
+                case -1:
+                    perror("fork() failed!");
+                    exit(1);
+                    break;
+                case 0:
+                    execCommand(fragmentArray);
+                default:
+                    childPid = wait(&childStatus);
 	    }
-        printf("The process with pid %d is returning from main\n", getpid());
-        return 0;
+        
     }
+}
 
 
         // if(fragmentArray[0] == "exit")
