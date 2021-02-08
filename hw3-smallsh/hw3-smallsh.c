@@ -9,12 +9,24 @@
 #include <fcntl.h>
 
 
+struct inOut 
+{
+    char inputFile[10001];
+    char outputFile[10001];
+    int background;
+};
 
+struct inOut initialize()
+{
+    struct inOut tuple = {"\0", "\0", 0};
+    return tuple;
+}
 
 char *shellUI()
 {
     char command[10000];
     printf(": ");
+    fflush(stdout);
     fgets(command, 100000, stdin);
     if (strlen(command) > 0 && command[strlen(command) - 1] == '\n') 
     {
@@ -44,6 +56,34 @@ char **parseInput(char *command)
     return fragmentArray;
 }
 
+struct inOut parseSpecialInput(char **fragmentArray)
+{
+    int i = 0;
+    char* ch = fragmentArray[i];
+    char inputFile[10001];
+    char outputFile[10001];
+    struct inOut inOutValues = initialize();
+    while(strcmp(ch, "\0") != 0)
+    {
+        if(strcmp(ch, "<") == 0)
+        {
+            snprintf(inOutValues.inputFile, sizeof(inOutValues.inputFile), "%s\0", fragmentArray[i+1]);
+            printf("\n%s\n", inOutValues.inputFile);
+        }
+        else if(strcmp(ch, ">") == 0)
+        {
+            snprintf(inOutValues.outputFile, sizeof(inOutValues.outputFile), "%s\0", fragmentArray[i+1]);
+            printf("\n%s\n", inOutValues.outputFile);
+        }
+        ch = fragmentArray[++i];
+    }     
+    if(strcmp(fragmentArray[i-1], "&") == 0)
+    {
+        inOutValues.background = 0;
+    }
+    return inOutValues;
+}
+
 void printParse(char **fragmentArray)
 {
     int i = 0;
@@ -62,6 +102,7 @@ void execCommand(char **fragmentArray)
     char* ch = fragmentArray[i];
     while(strcmp(ch, "\0") != 0)
     {
+        printf("hi");
         ch = fragmentArray[++i];
     }
     fragmentArray[i] = NULL;
@@ -70,102 +111,149 @@ void execCommand(char **fragmentArray)
 }
 
 
-void cdFunc()
+int cdFunc(char **fragmentArray)
 {
-    printf("hi");
-}
-
-void statusFunc()
-{
-    printf("hi2");
-}
-
-    // spawnpid = fork();
-    // switch (spawnpid){
-    // case -1:
-    //     perror("fork() failed!");
-    //     exit(1);
-    // case 0:
-    //     execvp(fragmentArray[0], fragmentArray);
-    //     perror("execv");
-    // default:
-    // printf("I am the parent. My pid  = %d\n", getpid());
-    // childPid = wait(&childStatus);
-    //         printf("Parent's waiting is done as the child with pid %d exited\n", childPid);
-    // }
-
-// char* exactStrCpr(char **fragmentArray)
-// {
-//     char *fragmentArrayCopy[258];
-//     char exitCpy[] = "_exit_";
-//     char exitCpy[] = "_cd_";
-//     char exitCpy[] = "_status_";
-
-//     snprintf(fragmentArrayCopy, sizeof fragmentArrayCopy, "_%s_", fragmentArray);
-//     if(strstr(fragmentArray, fragmentArrayCopy) != NULL)
-//     {
-//         return "true";
-//     }
-
-//     else
-//     {
-//         return "false";
-//     }
-// }
-
-
-int main(int argc, char *argv[])
-{
-    while(1)
+    int i = 0;
+    char* ch = fragmentArray[i];
+    while(strcmp(ch, "\0") != 0)
     {
-        char **fragmentArray = parseInput(shellUI());
-        printf("%s", fragmentArray[0]);
-        if(strcmp(fragmentArray[0], "exit") == 0)
+        ch = fragmentArray[++i];
+    } 
+    if(i == 1)
+    {
+        chdir(getenv("HOME"));
+        return(0);
+    }
+    else
+    {
+        if(chdir(fragmentArray[1]) == -1)
         {
-            break;
+            printf("bash: cd: %s: No such file or directory.\n", fragmentArray[1]);
+            fflush(stdout);
+            return(-1);
         }
-        else if(fragmentArray[0] == "cd")
-        {
-            cdFunc();
-        }
-        else if(fragmentArray[0] == "status")
-        {
-            statusFunc();
-        }
-        else
-        {
-            pid_t spawnpid = -5;
-            int childStatus;
-            int childPid;
-            // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
-            spawnpid = fork();
-            switch(spawnpid)
-            {
-                case -1:
-                    perror("fork() failed!");
-                    exit(1);
-                    break;
-                case 0:
-                    execCommand(fragmentArray);
-                default:
-                    childPid = wait(&childStatus);
-	    }
-        
+        return(0);
     }
 }
 
+// char **outputIO(char **fragmentArray)
+// {
+//     // if(strcmp(inOutValues.outputFile, "\0") != 0)
+//     // {
+//     //     int targetFD = open(inOutValues.outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
+//     //     if (targetFD == -1) 
+//     //         {
+//     //             perror("open()");
+//     //             exit(1);
+//     //         }
+//     //     // Currently printf writes to the terminal
+//     //     printf("The file descriptor for targetFD is %d\n", targetFD);
 
-        // if(fragmentArray[0] == "exit")
-        // {
-        //     printf('Process complete with exit code 0.');
-        //     break;
-        // }
-        // if(fragmentArray[0] == "cd")
-        // {
-        //     cdFunc(fragmentArray)
-        // }
+//     //     // Use dup2 to point FD 1, i.e., standard output to targetFD
+//     //     int result = dup2(targetFD, 1);
+//     //     if (result == -1) 
+//     //     {
+//     //         perror("dup2"); 
+//     //         exit(2); 
+//     //     }
+//     //     // Now whatever we write to standard out will be written to targetFD
+//     //     fragmentArray[1] = "\0";
+//     // }
+//     return fragmentArray; 
+// }
 
-    // execvp("ls", "ls");
+int forcFunc(char **fragmentArray, struct inOut inOutValues)
+{
+    int status = 0;
+    pid_t spawnpid = -5;
+    int childStatus;
+    int childPid;
+    // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
+    spawnpid = fork();
+    switch(spawnpid)
+    {
+        case -1:
+            perror("fork() failed!\n");
+            status = 1;
+            exit(1);
+            break;
+        case 0:
+            if(strcmp(inOutValues.outputFile, "\0") != 0)
+            {
+                int targetFD = open(inOutValues.outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
+                if (targetFD == -1) 
+                    {
+                        perror("open()");
+                        exit(1);
+                    }
+                // Currently printf writes to the terminal
+                printf("The file descriptor for targetFD is %d\n", targetFD);
 
+                // Use dup2 to point FD 1, i.e., standard output to targetFD
+                int result = dup2(targetFD, 1);
+                if (result == -1) 
+                {
+                    perror("dup2"); 
+                    exit(2); 
+                }
+                // Now whatever we write to standard out will be written to targetFD
+                fragmentArray[1] = "\0";
+            }
+            execCommand(fragmentArray);
+            status = 1;
+            exit(1);
+            break;
+        default:
+            childPid = waitpid(-1, &childStatus, 0);
+            break;
+    }
+    return status;
+}
+
+int main(int argc, char *argv[])
+{
+    int status = 0;
+    while(1)
+    {
+        char **fragmentArray = parseInput(shellUI());
+        struct inOut inOutValues;
+        inOutValues = parseSpecialInput(fragmentArray);
+        // // printf("%s\n", inOutValues.inputFile); 
+        // // if(strcmp(inOutValues.outputFile, "\0") != 0)
+        // // {
+        // //     printf("hiorigjoikg");
+        // // }
+
+        if(strcmp(fragmentArray[0], "exit") == 0)
+        {
+            status = 0;
+            printf("Last process exited with status %d.\n", status);
+            break;
+        }
+        else if(strcmp(fragmentArray[0], "cd") == 0)
+        {
+            status = cdFunc(fragmentArray);
+        }
+        else if(strcmp(fragmentArray[0], "status") == 0)
+        {
+            if(WIFEXITED(status))
+            {
+                printf("WIFStatus %d\n", WIFEXITED(status));
+            }
+            else
+            {
+                printf("Status %d\n", status);
+            }
+        }
+        else if(strcmp(fragmentArray[0], "#") == 0)
+        {
+            ; //stuffff 
+        }
+        else
+        {
+            status = forcFunc(fragmentArray, inOutValues);
+    
+        }
+    }
 }
 
