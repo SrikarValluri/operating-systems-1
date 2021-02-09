@@ -8,8 +8,9 @@
 #include <time.h>    // time()
 #include <fcntl.h>
 #include <signal.h>
+#include <errno.h>
 
-
+volatile sig_atomic_t ctrlZBackground = 0;
 
 struct inOut 
 {
@@ -63,6 +64,7 @@ char *shellUI()
     {
         command[strlen(command)-1] = '\0';
     }
+    // printf("%s\n", command);
     return command;
 }
 
@@ -99,19 +101,16 @@ struct inOut parseSpecialInput(char **fragmentArray)
         if(strcmp(ch, "<") == 0)
         {
             snprintf(inOutValues.inputFile, sizeof(inOutValues.inputFile), "%s\0", fragmentArray[i+1]);
-            printf("\n%s\n", inOutValues.inputFile);
         }
         else if(strcmp(ch, ">") == 0)
         {
             snprintf(inOutValues.outputFile, sizeof(inOutValues.outputFile), "%s\0", fragmentArray[i+1]);
-            printf("\n%s\n", inOutValues.outputFile);
         }
         ch = fragmentArray[++i];
     }     
     if(strcmp(fragmentArray[i-1], "&") == 0)
     {
         inOutValues.background = 1;
-        printf("hi\n");
     }
     return inOutValues;
 }
@@ -123,6 +122,7 @@ void printParse(char **fragmentArray)
     while(strcmp(ch, "\0") != 0)
     {
         printf("%s\n", ch);
+        fflush(stdout);
         ch = fragmentArray[++i];
     }    
 
@@ -138,7 +138,9 @@ void execCommand(char **fragmentArray)
     }
     fragmentArray[i] = NULL;
     execvp(fragmentArray[0], fragmentArray);
-    perror("Invalid Input: \n");
+    perror("");
+    printf("\n");
+    fflush(stdout);
 }
 
 
@@ -159,9 +161,9 @@ int cdFunc(char **fragmentArray)
     {
         if(chdir(fragmentArray[1]) == -1)
         {
-            printf("bash: cd: %s: No such file or directory.\n", fragmentArray[1]);
+            printf("No such file or directory.\n");
             fflush(stdout);
-            return(-1);
+            return(1);
         }
         return(0);
     }
@@ -171,7 +173,7 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
 {
     int status = 0;
     pid_t spawnpid = -5;
-    int childStatus;
+    int childStatus = 0;
     int childPid;
     // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
     spawnpid = fork();
@@ -179,7 +181,6 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
     {
         case -1:
             perror("fork() failed!\n");
-            status = 1;
             exit(1);
             break;
         case 0:
@@ -213,8 +214,6 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
                         exit(1);
                     }
                 // Currently printf writes to the terminal
-                printf("The file descriptor for targetFD is %d\n", targetFD);
-
                 // Use dup2 to point FD 1, i.e., standard output to targetFD
                 int result = dup2(targetFD, 0);
                 if (result == -1) 
@@ -238,41 +237,112 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
             }      
 
             execCommand(fragmentArray);
-            status = 1;
             exit(1);
             break;
         default:
             if(inOutValues.background == 0)
             {
-                childPid = waitpid(-1, &childStatus, 0);
+                childPid = waitpid(spawnpid, &childStatus, 0);
                 break;
             }
-            if(inOutValues.background == 1)
+            else if(inOutValues.background == 1)
             {
-                childPid = waitpid(-1, &childStatus, WNOHANG);              
-                break;
+
+                if(ctrlZBackground == 0)
+                {
+                    printf("background pid is %d\n", spawnpid);
+                    fflush(stdout);
+                }
+                
+                else if(ctrlZBackground == 1)
+                {
+                    childPid = waitpid(spawnpid, &childStatus, 0);
+                }
+                
+            }
+            while(1)
+            {
+                printf("supppperoni");
+                fflush(stdout);
+                pid_t result;
+                int printStatus = 0;
+                if((result = waitpid(-1, &printStatus, WNOHANG)) > 0)
+                {
+                    fflush(stdout);
+                    if(WIFSIGNALED(printStatus))
+                    {
+                        printf("background process %d terminated with signal %d.\n", result, WTERMSIG(printStatus));
+                        fflush(stdout);
+                    }
+                    else
+                    {
+                        printf("background process %d exited with status %d. \n", result, WEXITSTATUS(printStatus));
+                        fflush(stdout);
+                    }
+
+                }
+                else
+                {
+                    break;
+                }
             }
     }
+    return childStatus;
+}
 
-    return status;
+void handle_SIGTSTP(int signo){
+	char* message1;
+    char* message2;
+    if(ctrlZBackground == 0)
+    {
+        message1 = "\nforeground mode\n";
+        ctrlZBackground = 1;
+        // printf("hel;lo1111");
+        write(1, message1, 17);
+        fflush(stdout);
+
+        // printf("%s\n", message1);
+    }
+    else if(ctrlZBackground == 1)
+    {
+        message2 = "\nnon-foreground mode\n";
+        // printf("helloooooooooooo\n");
+        ctrlZBackground = 0;
+        // printf("%s\n", message2);
+        write(1, message2, 21);
+        fflush(stdout);
+    }
 }
 
 int main(int argc, char *argv[])
 {
+    // printf("THIS IS THE PID IN MAIN %d", getpid());
+
     int status = 0;
     // Initialize SIGINT_action struct to be empty
     struct sigaction SIGINT_action = {0};
-
+    struct sigaction SIGTSTP_action = {0};
+    struct sigaction ignore_action = {0};
     // Fill out the SIGINT_action struct
     // Register handle_SIGINT as the signal handler
     SIGINT_action.sa_handler = SIG_IGN;
+    SIGTSTP_action.sa_handler = handle_SIGTSTP;
+    ignore_action.sa_handler = SIG_IGN;
     // Block all catchable signals while handle_SIGINT is running
     sigfillset(&SIGINT_action.sa_mask);
+    sigfillset(&SIGTSTP_action.sa_mask);
     // No flags set
     SIGINT_action.sa_flags = 0;
+    SIGTSTP_action.sa_flags = SA_RESTART;
 
     // Install our signal handler
     sigaction(SIGINT, &SIGINT_action, NULL);
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+
+    sigaction(SIGTERM, &ignore_action, NULL);
+	sigaction(SIGHUP, &ignore_action, NULL);
+	sigaction(SIGQUIT, &ignore_action, NULL);
+
 
     // printf("Send the signal SIGINT to this process by entering Control-C. That will cause the signal handler to be invoked\n");
     fflush(stdout);
@@ -285,6 +355,7 @@ int main(int argc, char *argv[])
         char* ch = fragmentArray[i];
         int pidCount = 0;
         char pidValue[10000];
+        int wstatus;
 
         while(strcmp(ch, "\0") != 0)
         {
@@ -295,8 +366,8 @@ int main(int argc, char *argv[])
 
         if(strcmp(fragmentArray[0], "exit") == 0)
         {
-            status = 0;
-            printf("Last process exited with status %d.\n", status);
+            // status = 0;
+            // printf("Last process exited with status %d.\n", status);
             break;
         }
         else if(strcmp(fragmentArray[0], "cd") == 0)
@@ -305,22 +376,26 @@ int main(int argc, char *argv[])
         }
         else if(strcmp(fragmentArray[0], "status") == 0)
         {
-            if(WIFSIGNALED(status))
+            if(WIFSIGNALED(wstatus))
             {
-                printf("WIFStatus %d\n", WIFEXITED(status)); //WTERMSIG
+                printf("exit status %d.\n", WTERMSIG(wstatus));
+                fflush(stdout);
             }
             else
             {
-                printf("Status %d\n", status);
+                printf("exit status %d. \n", WEXITSTATUS(wstatus));
+                fflush(stdout);
             }
+
         }
         else if((fragmentArray[0][0] == '#') != 0)
         {
-            ;
+            status = 0;
         }
         else
         {
-            status = forcFunc(fragmentArray, inOutValues, SIGINT_action);
+            wstatus = forcFunc(fragmentArray, inOutValues, SIGINT_action);
+   
     
         }
     }
