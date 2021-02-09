@@ -10,7 +10,7 @@
 #include <signal.h>
 #include <errno.h>
 
-volatile sig_atomic_t ctrlZBackground = 0;
+volatile sig_atomic_t ctrlZBackground = 0; //glo
 
 struct inOut 
 {
@@ -320,12 +320,10 @@ int main(int argc, char *argv[])
     // Initialize SIGINT_action struct to be empty
     struct sigaction SIGINT_action = {0};
     struct sigaction SIGTSTP_action = {0};
-    struct sigaction ignore_action = {0};
     // Fill out the SIGINT_action struct
     // Register handle_SIGINT as the signal handler
     SIGINT_action.sa_handler = SIG_IGN;
     SIGTSTP_action.sa_handler = handle_SIGTSTP;
-    ignore_action.sa_handler = SIG_IGN;
     // Block all catchable signals while handle_SIGINT is running
     sigfillset(&SIGINT_action.sa_mask);
     sigfillset(&SIGTSTP_action.sa_mask);
@@ -337,9 +335,9 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &SIGINT_action, NULL);
     sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
-    sigaction(SIGTERM, &ignore_action, NULL);
-	sigaction(SIGHUP, &ignore_action, NULL);
-	sigaction(SIGQUIT, &ignore_action, NULL);
+    // sigaction(SIGTERM, &ignore_action, NULL);
+	// sigaction(SIGHUP, &ignore_action, NULL);
+	// sigaction(SIGQUIT, &ignore_action, NULL);
 
 
     // printf("Send the signal SIGINT to this process by entering Control-C. That will cause the signal handler to be invoked\n");
@@ -398,19 +396,3 @@ int main(int argc, char *argv[])
         }
     }
 }
-
-        // while(spawnpid > 0)
-        // {
-        //     printf("background process complete: %d\n", spawnpid);
-        //     if(WIFEXITED(childStatus))
-        //     {
-        //         printf("exit status %d\n", WEXITSTATUS(childStatus));
-        //         fflush(stdout);
-        //     }
-        //     else
-        //     {
-        //         printf("Terminating signal: %d\n", childStatus);
-        //         fflush(stdout);
-        //     }
-        //     spawnpid = waitpid(-1, &childStatus, WNOHANG);
-        // }
