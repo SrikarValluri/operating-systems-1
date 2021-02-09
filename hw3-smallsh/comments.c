@@ -94,9 +94,9 @@ char **parseInput(char *command) // time to parse the input from the UI
 struct inOut parseSpecialInput(char **fragmentArray) // this function specifically looks out for < > and &
 {
     int i = 0; // counter
-    char* ch = fragmentArray[i]; // an instance of array
     char inputFile[10001];
     char outputFile[10001];
+    char* ch = fragmentArray[i]; // an instance of array
     struct inOut inOutValues = initialize(); // initialize struct that stores input output and background info
     while(strcmp(ch, "\0") != 0) // iterate through each fragment
     {
