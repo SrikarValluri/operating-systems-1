@@ -177,6 +177,7 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
     int childPid;
     // If fork is successful, the value of spawnpid will be 0 in the child, the child's pid in the parent
     spawnpid = fork();
+
     switch(spawnpid)
     {
         case -1:
@@ -243,7 +244,12 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
             if(inOutValues.background == 0)
             {
                 childPid = waitpid(spawnpid, &childStatus, 0);
-                break;
+                // if(WIFSIGNALED(childStatus) != 0)
+                // {
+                //     printf("Terminated by signal: %d \n", WTERMSIG(childStatus));
+                //     fflush(stdout);
+                // }
+                // break;
             }
             else if(inOutValues.background == 1)
             {
@@ -260,33 +266,25 @@ int forcFunc(char **fragmentArray, struct inOut inOutValues, struct sigaction SI
                 }
                 
             }
-            while(1)
+        pid_t result;
+        int printStatus = 0;
+        while((result = waitpid(-1, &printStatus, WNOHANG)) > 0)
+        {
+            fflush(stdout);
+            if(WIFSIGNALED(printStatus))
             {
-                printf("supppperoni");
+                printf("background process %d terminated with signal %d.\n", result, WTERMSIG(printStatus));
                 fflush(stdout);
-                pid_t result;
-                int printStatus = 0;
-                if((result = waitpid(-1, &printStatus, WNOHANG)) > 0)
-                {
-                    fflush(stdout);
-                    if(WIFSIGNALED(printStatus))
-                    {
-                        printf("background process %d terminated with signal %d.\n", result, WTERMSIG(printStatus));
-                        fflush(stdout);
-                    }
-                    else
-                    {
-                        printf("background process %d exited with status %d. \n", result, WEXITSTATUS(printStatus));
-                        fflush(stdout);
-                    }
-
-                }
-                else
-                {
-                    break;
-                }
             }
+            else
+            {
+                printf("background process %d exited with status %d. \n", result, WEXITSTATUS(printStatus));
+                fflush(stdout);
+            }
+        }
+
     }
+
     return childStatus;
 }
 
@@ -401,3 +399,18 @@ int main(int argc, char *argv[])
     }
 }
 
+        // while(spawnpid > 0)
+        // {
+        //     printf("background process complete: %d\n", spawnpid);
+        //     if(WIFEXITED(childStatus))
+        //     {
+        //         printf("exit status %d\n", WEXITSTATUS(childStatus));
+        //         fflush(stdout);
+        //     }
+        //     else
+        //     {
+        //         printf("Terminating signal: %d\n", childStatus);
+        //         fflush(stdout);
+        //     }
+        //     spawnpid = waitpid(-1, &childStatus, WNOHANG);
+        // }
