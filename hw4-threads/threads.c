@@ -14,10 +14,11 @@
 
 
 /*
-A program with a pipeline of 3 threads that interact with each other as producers and consumers.
+A program with a pipeline of 4 threads that interact with each other as producers and consumers.
 - Input thread is the first thread in the pipeline. It gets input from the user and puts it in a buffer it shares with the next thread in the pipeline.
-- Square root thread is the second thread in the pipeline. It consumes items from the buffer it shares with the input thread. It computes the square root of this item. It puts the computed value in a buffer it shares with the next thread in the pipeline. Thus this thread implements both consumer and producer functionalities.
-- Output thread is the third thread in the pipeline. It consumes items from the buffer it shares with the square root thread and prints the items.
+- The Line Seperator thread is the second thread in the pipeline. The "\n" characters of the input are replaced with " " characters. The buffer, once recieved, will do this operation and then puts it in another buffer to continue with the pipeline.
+- The Plus Sign thread is the third thread in the pipeline. This modified the input by repalcing any "++" in the string with "^". Similarly, it takes the output of the previous buffer and does this operation, and then it adds it to another buffer. 
+- Output thread is the fourth and final thread in the pipeline. It consumes items from the buffer it shares with the Plus Sign thread and prints the items.
 
 */
 
@@ -97,7 +98,7 @@ void get_user_input(char *user_input)
 /*
  Function that the input thread will run.
  Get input from the user.
- Put the item in the buffer shared with the square_root thread.
+ Put the item in the buffer shared with the line seperator thread.
 */
 void *get_input()
 {
@@ -152,14 +153,6 @@ void put_buff_2(char* item)
   pthread_mutex_unlock(&mutex_2);
 }
 
-/*
- Function that the square root thread will run. 
- Consume an item from the buffer shared with the input thread.
- Compute the square root of the item.
- Produce an item in the buffer shared with the output thread.
-
-*/
-
 // This function is from my smallsh program
 void replace_string(char *target, const char *key, const char *replacement) // this function is specifically for replacing every \n or ++ occurence with its respective replacement
 // Target is the input from the user, key is the thing we want to replace, and replacement is what we will replace it with.
@@ -190,21 +183,28 @@ void replace_string(char *target, const char *key, const char *replacement) // t
     strcpy(target, buffer); // copy the array to the target, from the buffer
 }
 
+/*
+ Function that the line seperator thread will run. 
+ Consume an item from the buffer shared with the input thread.
+ Perform the line seperation operation. 
+ Produce an item in the buffer shared with the plus sign thread.
+
+*/
 
 void *line_seperator(void *args)
 {
-    char item[1000];
+    char item[1000]; // creating memory for recieving item
     int i;    
     for(i = 0; i < NUM_ITEMS; i++)
     {
-      get_buff_1(item);
-      if(strcmp(item, "STOP\n") == 0)
+      get_buff_1(item); // update item from the input thread
+      if(strcmp(item, "STOP\n") == 0) // if there's a stop, terminate
       {
-        put_buff_2(item);
+        put_buff_2(item); // send termination signal to next thread also
         break;
       }
-      replace_string(item, "\n", " ");
-      put_buff_2(item);
+      replace_string(item, "\n", " "); // replace the "\n" with " "
+      put_buff_2(item); // put the modified item in the next buffer
     }
     return NULL;
 }
@@ -246,20 +246,28 @@ void put_buff_3(char *item)
   pthread_mutex_unlock(&mutex_3);
 }
 
+/*
+ Function that the plus sign thread will run. 
+ Consume an item from the buffer shared with the line seperator thread.
+ Perform the plus sign replacement operation. 
+ Produce an item in the buffer shared with the output thread.
+
+*/
+
 void *plus_sign(void *args)
 {
-    char item[1000];  
+    char item[1000]; // creating memory for recieving item
     int i;
     for(i = 0; i < NUM_ITEMS; i++)
     {
-      get_buff_2(item);
-      if(strcmp(item, "STOP\n") == 0)
+      get_buff_2(item); // update item from the line seperator thread
+      if(strcmp(item, "STOP\n") == 0) // if there's a stop, terminate
       {
-        put_buff_3(item);
+        put_buff_3(item); // send termination signal to next thread also
         break;
       }
-      replace_string(item, "++", "^");
-      put_buff_3(item);
+      replace_string(item, "++", "^"); // replace every "++" with "^"
+      put_buff_3(item); // put the item in the next buffer
     }
     return NULL;
 }
@@ -286,15 +294,15 @@ void get_buff_3(char* item)
 
 /*
  Function that the output thread will run. 
- Consume an item from the buffer shared with the square root thread.
+ Consume an item from the buffer shared with the plus sign thread.
  Print the item.
 */
 void *write_output()
 {
-    char item[1000];
-    char formatted_item[100000];
-    char buffer[100000];
-    int new = 0;
+    char item[1000]; // recieving item from previous buffer
+    char formatted_item[100000]; // this is a storage of all the strings concatenated into one 
+    char buffer[100000]; // this is a buffer for temporary storage
+    int new = 0; // activator to start chain of string
     int i = 0;
     int j = 0;
     int k;
@@ -302,32 +310,30 @@ void *write_output()
 
     for(i = 0; i < NUM_ITEMS; i++)
     {
-      get_buff_3(item);
-      if(strcmp(item, "STOP\n") == 0)
+      get_buff_3(item); // recieve item from previous buffer
+      if(strcmp(item, "STOP\n") == 0) // break the signal if STOP is recieved
       {
         break;
       }
 
       if(new == 0)
       {
-        snprintf(formatted_item, sizeof formatted_item, "%s", item); //modifying original input
+        snprintf(formatted_item, sizeof formatted_item, "%s", item); // first time recieving text? initialize formatted_item 
         new = 1;
       }
       else
       {
         strcpy(buffer, formatted_item);
-        snprintf(formatted_item, sizeof formatted_item, "%s%s", buffer, item); //modifying original input
-        // printf("formatted_item: %s\n", formatted_item);
+        snprintf(formatted_item, sizeof formatted_item, "%s%s", buffer, item); // adding on to formatted_item
       }
-      // printf("len-j: %d\n", (strlen(formatted_item)-j));
       fflush(stdout);
-      while((strlen(formatted_item) - j) >= 80)
+      while((strlen(formatted_item) - j) >= 80) // while the next possible print is still greater than or equal to 80 characters
       {
         k = j;
         j += 80;
         for(k; k < j; k++)
         {
-          printf("%c", formatted_item[k]);
+          printf("%c", formatted_item[k]); // print 80 characters at a time
           fflush(stdout);
         }
         printf("\n");
@@ -340,7 +346,7 @@ void *write_output()
 
 int main()
 {
-    pthread_t input_t, line_seperator_t, plus_sign_t, output_t;
+    pthread_t input_t, line_seperator_t, plus_sign_t, output_t; // initialization
     // Create the threads
     pthread_create(&input_t, NULL, get_input, NULL);
     pthread_create(&line_seperator_t, NULL, line_seperator, NULL);
@@ -351,11 +357,5 @@ int main()
     pthread_join(line_seperator_t, NULL);
     pthread_join(plus_sign_t, NULL);
     pthread_join(output_t, NULL);
-    return EXIT_SUCCESS;
-
-    // char user_input[1000];
-    // get_user_input(user_input);
-    // replace_string(user_input, "\n", " ");
-    // printf("user input: %stesting", user_input);
-
+    return EXIT_SUCCESS; // yippeeeee
 }
