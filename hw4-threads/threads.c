@@ -332,29 +332,7 @@ void *write_output()
         }
         printf("\n");
         fflush(stdout);
-        // printf("len-j: %d, len: %d, formatted_item: %s\n", (strlen(formatted_item)-j), strlen(formatted_item), formatted_item);
-        // fflush(stdout);
       }
-
-      // j = 0;
-      // k = 0;
-      // while(k < (strlen(item) + 1))
-      // {
-      //   formatted_item[j] = item[k];
-      //   k++;
-      //   j++;
-      //   if((k) % 80 == 0)
-      //   {
-      //     formatted_item[j] = '\n';
-      //     j++;
-      //     // if((strlen(item) - k) < 80)
-      //     // {
-      //     //   break;
-      //     // }
-      //   }
-      // } 
-      // printf("%s", formatted_item);
-      // fflush(stdout);
     }
 
     return NULL;

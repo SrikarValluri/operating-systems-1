@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "string": "c",
-        "array": "c"
+        "array": "c",
+        "*.tcc": "c"
     }
 }
