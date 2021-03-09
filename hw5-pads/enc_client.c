@@ -46,14 +46,15 @@ void setupAddressStruct(struct sockaddr_in* address,
 }
 
 /*
-https://www.tutorialspoint.com/program-to-check-if-a-string-contains-any-special-character-in-c
+This function was inspired by this link: https://www.tutorialspoint.com/program-to-check-if-a-string-contains-any-special-character-in-c
+All it does is iterates through the entire string, looking specifically for any special characters that it may come across, and return whether there exists any or not.
 */
 
 int special_character(char *str){
    int i, flag = 0;
-   for(i = 0; i < strlen(str); i++)
+   for(i = 0; i < strlen(str); i++) // looping through string
    {
-      //checking each character of the string for special character.
+      // all the possible invalid characters
       if(str[i] == '!' || str[i] == '@' || str[i] == '#' || str[i] == '$'
       || str[i] == '%' || str[i] == '^' || str[i] == '&' || str[i] == '*'
       || str[i] == '(' || str[i] == ')' || str[i] == '-' || str[i] == '{'
@@ -63,14 +64,14 @@ int special_character(char *str){
       || str[i] == '~' || str[i] == '`' || str[i] == '|')
       {
         flag = 1;
-        return flag;
+        return flag; // if exists return 1
       }
    }
-   return flag;
+   return flag; // otherwise return 0
 }
 
 int main(int argc, char *argv[]) {
-  int socketFD, portNumber, charsWritten, charsRead;
+  int socketFD, portNumber, charsWritten, charsRead; // important information for sending information between client and server
   struct sockaddr_in serverAddress;
   // Check usage & args
   if (argc < 4) { 
@@ -91,39 +92,35 @@ int main(int argc, char *argv[]) {
   if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0){
     error("CLIENT: ERROR connecting");
   }
-  // Get input message from user
-  // printf("CLIENT: Enter text to send to the server, and then hit enter: ");
-  // // Clear out the buffer array
-  // memset(buffer, '\0', sizeof(buffer));
-  // // Get input from the user, trunc to buffer - 1 chars, leaving \0
-  // fgets(buffer, sizeof(buffer) - 1, stdin);
-
   /*
-  THIS IS WHERE I REPLACE FGETS WITH FOPEN MESSAGE, FOPEN KEY 
-  char array[] = fopen(something);
-  CHECK FOR NONSTANDARD CRAP
-  CHECK IF SIZE OF FILES ARE EQUAL IF NOT RETURN ERROR
+  The next parts open the message, reads through the message, and stores important information
+  such as the length of the message and the message itself (buffer1). It uses the functions fseek,
+  ftell, and fread. 
   */
 
-
-  FILE *message = fopen(argv[1], "rb");
-  unsigned long strLen;
-  char *buffer1 = 0;
+  FILE *message = fopen(argv[1], "rb"); 
+  unsigned long strLen; 
+  char *buffer1 = 0; 
   if(message)
   {
-    fseek(message, 0L, SEEK_END);
-    strLen = ftell(message);
-    fseek(message, 0L, SEEK_SET);
-    buffer1 = malloc(strLen+1);
+    fseek(message, 0L, SEEK_END); // read through the end of the message
+    strLen = ftell(message); // count the number of characters
+    fseek(message, 0L, SEEK_SET); // set the pointer back to the initial point
+    buffer1 = malloc(strLen+1); 
     if(buffer1)
     {
       fread(buffer1, 1, strLen, message);
     }
     fclose(message);
   }
-  buffer1[strLen] = '\0';
-  buffer1[strcspn(buffer1, "\n")] = '\0';
-//   printf("buffer1: %s", buffer1); 
+  buffer1[strLen] = '\0'; // formatting end of string
+  buffer1[strcspn(buffer1, "\n")] = '\0'; // removing newline
+
+ /*
+  The next parts open the KEY, reads through the KEY, and stores important information
+  such as the length of the KEY and the KEY itself (buffer2). It uses the functions fseek,
+  ftell, and fread, similar to the first one. 
+*/
 
   FILE *key = fopen(argv[2], "rb");
   unsigned long keyLen;
@@ -140,9 +137,14 @@ int main(int argc, char *argv[]) {
     }
     fclose(key);
   }
-  buffer2[keyLen] = '\0';
-  buffer2[strcspn(buffer2, "\n")] = '\0'; 
-//   printf("buffer2: %s\n", buffer2); 
+  buffer2[keyLen] = '\0'; // formatting strings once again
+  buffer2[strcspn(buffer2, "\n")] = '\0'; // removing endline
+
+  /*
+  This step exits the program if the key has invalid characters, or if it has less characters than the message itself.
+  Without conditions being met, the program cannot run successfully. 
+
+  */
 
   if(strLen > keyLen)
   {
@@ -156,10 +158,17 @@ int main(int argc, char *argv[]) {
       exit(1);
   }
 
+  /*
+  This step will concatenate the message and the key so that it provides for easy transport between the client and the server.
+  */
+
   char *buffer = 0;
   buffer = malloc(strLen+keyLen+1);
-  snprintf(buffer, strLen+keyLen+1, "%s%s", buffer1, buffer2);
-//   printf("buffer: %s\n", buffer);
+  snprintf(buffer, strLen+keyLen+1, "%s%s", buffer1, buffer2); // concatenation
+
+  // This step checks whether the enc_client is going to the enc_server, because it doesn't belong to the dec_server
+  // Making sure to error if necessary
+
 
   char confirm_enc_client[2];
   memset(confirm_enc_client, '\0', 2);
@@ -172,35 +181,42 @@ int main(int argc, char *argv[]) {
     exit(2);
   }
 
+  /*
+  Sending information about the length of the message itself, as well as the length of the key. 
+  This is using the send function, something that is crucial to communication between the client and server.
+  */
 
-//   printf("CLIENT: Sending string length: %d\n", strLen);
   charsWritten = send(socketFD, &strLen, sizeof(int), 0); 
   if (charsWritten < 0){
     error("CLIENT: ERROR writing to socket");
   }
 
 
-//   printf("CLIENT: Sending key length: %d\n", keyLen);
   charsWritten = send(socketFD, &keyLen, sizeof(int), 0); 
   if (charsWritten < 0){
     error("CLIENT: ERROR writing to socket");
   }
 
-  // Send message to server
-  // Write to the server
+  /*
+  This code is sending the buffer itself, with all the information about the message and the key
+  */
 
-
-//   printf("CLIENT: Sending buffer: %s, totallen: %d\n", buffer, strLen+keyLen);
   charsWritten = send(socketFD, buffer, strLen+keyLen, 0); 
   if (charsWritten < 0){
     error("CLIENT: ERROR writing to socket");
   }
-  if (charsWritten < strlen(buffer)){
+  if (charsWritten < strlen(buffer)){ // errors if required
     printf("CLIENT: WARNING: Not all data written to socket!\n");
   }
 
   // Get return message from server
   // Clear out the buffer again for reuse
+
+  /*
+  Now it's time to recieve the encrypted information back from the server. This encryption is the result of the 
+  message and key that was sent to the server. This encryption is then formatted and then printed in stdout. 
+  */
+
   memset(buffer, '\0', sizeof(buffer));
   char *encoded_buffer;
   encoded_buffer = malloc(strLen+1);

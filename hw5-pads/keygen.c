@@ -22,19 +22,22 @@ int main(int argc, char *argv[])
     exit(0); 
     } 
 
-    srand(time(NULL));
+    srand(time(NULL)); // setting random time seed
 
-    int keylength = atoi(argv[1]);
+    int keylength = atoi(argv[1]); // turning the second terminal input into an integer, using as parameter
 
-    char *key = malloc(keylength+1);
-    char temp[keylength];
-    int i = 0;
-    int randomInt;
+    char *key = malloc(keylength+1); // allocation of memory based on the needs of the key
+    char temp[keylength]; // creating a temporary array
+    int i = 0; // initialization of loop counter
+    int randomInt; // temporary random integer reciever
 
-    while(i < keylength)
+    while(i < keylength) // while the amount of random characters have not yet been reached
     {
-        randomInt = rand() % 27;
-        if(randomInt == 0)
+        randomInt = rand() % 27; // generate a random integer
+
+        // Make sure each integer is set with its own corresponding letter
+
+        if(randomInt == 0) 
         {
             key[i] = 'A';
         }
@@ -143,8 +146,10 @@ int main(int argc, char *argv[])
             key[i] = ' ';
         }
         i++;
+
+        // this creates a randomized key
     }
-    key[keylength] = '\0';
-    printf("%s\n", key);
+    key[keylength] = '\0'; // format the end of the string
+    printf("%s\n", key); // send key to stdout 
     
 }

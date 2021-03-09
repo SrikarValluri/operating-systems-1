@@ -20,7 +20,7 @@ void error(const char *msg) {
   perror(msg);
   exit(1);
 } 
-
+// This function is the % operator, but it also works for negative numbers. This is useful for our encoding. 
 int mod(int a, int b)
 {
     int r = a % b;
@@ -29,6 +29,9 @@ int mod(int a, int b)
 
 /*
 Citing my amazing self for creating the best creation of all time
+
+AKA creating two functions that convert from a number to its corresponding letter, as well as a
+letter that converts directly to its corresponding number. 
 */
 char numToChar(int randomInt)
 {
@@ -254,6 +257,11 @@ int charToNum(int letter)
   }
 }
 
+/*
+This function was inspired by this link: https://www.tutorialspoint.com/program-to-check-if-a-string-contains-any-special-character-in-c
+All it does is iterates through the entire string, looking specifically for any special characters that it may come across, and return whether there exists any or not.
+*/
+
 int special_character(char *str){
    int i, flag = 0;
    for(i = 0; i < strlen(str); i++)
@@ -289,6 +297,10 @@ void setupAddressStruct(struct sockaddr_in* address,
   address->sin_addr.s_addr = INADDR_ANY;
 }
 
+/*
+This function allows for the child process of the fork to terminate when it's job is finished. 
+*/
+
 void catch_SIGCHILD(int signal)
 {
     int status = 0;
@@ -296,13 +308,17 @@ void catch_SIGCHILD(int signal)
 }
 
 int main(int argc, char *argv[]){
-  int connectionSocket, charsRead, strLen, keyLen, counter;
-//   char *confirm_enc_client;
-  char *buffer;
-  char *encoded_buffer;
-  struct sockaddr_in serverAddress, clientAddress;
+  int connectionSocket, charsRead, strLen, keyLen, counter; // important information for the rest of the program
+  char *buffer; // the buffer that is recieved from the client
+  char *encoded_buffer; // the encoded buffer that will be sent to the client
+  struct sockaddr_in serverAddress, clientAddress; // information used for communication between the server and client
   socklen_t sizeOfClientInfo = sizeof(clientAddress);
-  struct sigaction act; // https://www.ipa.go.jp/security/awareness/vendor/programmingv1/b07_04.html
+  /*
+  This website: https://www.ipa.go.jp/security/awareness/vendor/programmingv1/b07_04.html was very useful regarding how to
+  terminate the child processes, so that running servers wouldn't continue accumulating whenever a fork is run. These are
+  the variables required for it to occur:
+  */
+  struct sigaction act; 
   memset(&act, 0, sizeof(act));   
   act.sa_handler = catch_SIGCHILD;
   sigemptyset(&act.sa_mask); 
@@ -338,34 +354,32 @@ int main(int argc, char *argv[]){
   pid_t spawnpid;
   
   while(1){
-    // spawnpid = fork();
     // Accept the connection request which creates a connection socket
     connectionSocket = accept(listenSocket, 
                 (struct sockaddr *)&clientAddress, 
                 &sizeOfClientInfo);
+    
+    /*
+    Now's the time to fork the program: this way, each server call will have it's own temporary fork that finishes
+    executing once the process is complete. 
+    */
+
     spawnpid = fork();
 
     if(spawnpid == 0)
     {
       if (connectionSocket < 0){
         error("ERROR on accept");
-      }   
-    //   char confirm_enc_client[1];
-      
-    //   charsRead = recv(connectionSocket, confirm_enc_client[0], 10, 0);
+      } 
 
+      // This is to send a test signal marking the "enc_server". "dec_server" should have a different marking.
+      // This prevents the cross porting of enc_client and dec_server and vice versa. 
 
-    //   if (charsRead < 0){
-    //     error("ERROR reading from socket");
-    //   }
-
-    //   if(confirm_enc_client != 'S')
-    //   {
-    //       error("Incorrect Server.\n");
-    //   }
-      
       charsRead = send(connectionSocket, "E", 1, 0); 
 
+      /*
+      Recieve the length of the message, as well as the length of the key. This will help with the encoding/decoding step.
+      */
 
       charsRead = recv(connectionSocket, &strLen, sizeof(int), 0);
       if (charsRead < 0){
@@ -378,6 +392,10 @@ int main(int argc, char *argv[]){
         error("ERROR reading from socket");
       }
 
+      /*
+      Recieve the buffer itself, with both message and key information that will be parsed and used to encrypt/decrypt.
+      */
+
       buffer = malloc(strLen+keyLen+1);
       charsRead = recv(connectionSocket, buffer, strLen+keyLen+1, 0);
 
@@ -387,9 +405,8 @@ int main(int argc, char *argv[]){
       
 
       /*
-      TAKE THE MESSAGE AND EITHER ENCRYPT OR DECRPYT BASED ON WHICH SERVER IT IS
-      UPDATE CONNECTIONSOCKET with ENCRYPT VALUE
-
+        This is the actual encoding process. Using mod arithmetic, and a combination of other functions, the message
+        is encrypted by the key, character by character. 
       */
 
       counter = 0;
@@ -401,7 +418,7 @@ int main(int argc, char *argv[]){
       }
       encoded_buffer[strLen-1] = '\0';
 
-      // Send a Success message back to the client
+      // Send a Success message back to the client, with the encoded information
       charsRead = send(connectionSocket, 
                       encoded_buffer, strlen(encoded_buffer), 0); 
       if (charsRead < 0){
